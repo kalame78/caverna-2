@@ -1,125 +1,46 @@
-<!doctype html>
-<html lang="fr">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>🔍 CAVERNA – Moteur de recherche du Coran</title>
-  <style>
-    body {
-      font-family: system-ui, Arial, sans-serif;
-      background: #0b0b0e;
-      color: #f1f1f1;
-      margin: 0;
-      padding: 30px;
-      text-align: center;
-    }
-    h1 {
-      color: #fbc576;
-      font-size: 24px;
-    }
-    input {
-      width: 80%;
-      max-width: 400px;
-      padding: 10px;
-      border-radius: 10px;
-      border: none;
-      margin-bottom: 10px;
-      font-size: 16px;
-      text-align: center;
-    }
-    button {
-      background: #fbc576;
-      border: none;
-      border-radius: 10px;
-      padding: 10px 20px;
-      color: #1b1204;
-      font-weight: bold;
-      cursor: pointer;
-    }
-    .verse {
-      background: #14141a;
-      border-radius: 12px;
-      margin: 20px auto;
-      padding: 15px;
-      max-width: 700px;
-      text-align: left;
-    }
-    .ar {
-      direction: rtl;
-      font-size: 24px;
-      margin-top: 10px;
-      background: #101014;
-      padding: 10px;
-      border-radius: 8px;
-    }
-    audio {
-      width: 100%;
-      margin-top: 10px;
-    }
-    .small {
-      color: #a3a3a3;
-      font-size: 13px;
-    }
-  </style>
-</head>
-<body>
+<script>
+async function searchQuran() {
+  const q = document.getElementById('query').value.trim();
+  const resultsDiv = document.getElementById('results');
+  resultsDiv.innerHTML = '<p>⏳ Recherche en cours...</p>';
 
-  <h1>🕋 CAVERNA – Moteur du Coran</h1>
-  <p>Entre un mot-clé ou une référence (ex: 2:255 ou sabr) :</p>
+  if (!q) {
+    resultsDiv.innerHTML = '<p>❗️Entre un mot ou une référence (ex: 12:20)</p>';
+    return;
+  }
 
-  <input type="text" id="query" placeholder="Ex: rahma ou 12:20" />
-  <button onclick="searchQuran()">Rechercher</button>
+  try {
+    // Si l'utilisateur entre une référence (ex: 2:255)
+    if (q.includes(':')) {
+      const [surah, ayah] = q.split(':');
+      const response = await fetch(`https://api.alquran.cloud/v1/ayah/${surah}:${ayah}/editions/quran-simple,fr.hamidullah,ar.alafasy`);
+      const data = await response.json();
+      if (data.code !== 200) throw new Error('Aucun résultat');
 
-  <div id="results"></div>
+      const [arabic, french, audio] = data.data;
+      resultsDiv.innerHTML = `
+        <div class="verse">
+          <strong>Sourate ${surah}, Verset ${ayah}</strong>
+          <div class="ar">${arabic.text}</div>
+          <p>${french.text}</p>
+          <audio controls src="${audio.audio}"></audio>
+        </div>
+      `;
+    }
 
-  <script>
-    async function searchQuran() {
-      const q = document.getElementById('query').value.trim();
-      const resultsDiv = document.getElementById('results');
-      resultsDiv.innerHTML = '<p>⏳ Recherche en cours...</p>';
-
-      if (!q) {
-        resultsDiv.innerHTML = '<p>❗️Entre un mot ou une référence (ex: 12:20)</p>';
+    // Sinon, si l'utilisateur tape un mot-clé (ex: sabr)
+    else {
+      const response = await fetch(`https://api.alquran.cloud/v1/search/${encodeURIComponent(q)}/all/fr.hamidullah`);
+      const data = await response.json();
+      if (data.code !== 200 || !data.data.matches.length) {
+        resultsDiv.innerHTML = '<p>⚠️ Aucun verset trouvé pour ce mot-clé.</p>';
         return;
       }
 
-      try {
-        const response = await fetch(`https://alquran-api.pages.dev/api/quran/search?q=${encodeURIComponent(q)}&lang=fr`);
-        if (!response.ok) throw new Error('Erreur API');
-        const data = await response.json();
-        const results = data.results || data.data || data || [];
-
-        if (!Array.isArray(results) || !results.length) {
-          resultsDiv.innerHTML = '<p>⚠️ Aucun résultat trouvé.</p>';
-          return;
-        }
-
-        resultsDiv.innerHTML = '';
-        results.slice(0, 10).forEach(item => {
-          const surah = item.surah_number || item.surah || item.chapter || '?';
-          const ayah = item.verse_number || item.ayah || '?';
-          const arabic = item.arabic || item.text_arabic || item.text || '';
-          const french = item.translation || item.text_fr || '';
-          const audioUrl = `https://cdn.islamic.network/quran/audio/ayah/128/ar.alafasy/${surah}:${ayah}.mp3`;
-
-          const verseDiv = document.createElement('div');
-          verseDiv.className = 'verse';
-          verseDiv.innerHTML = `
+      resultsDiv.innerHTML = '';
+      data.data.matches.slice(0, 10).forEach(item => {
+        const surah = item.surah.number;
+        const ayah = item.numberInSurah;
+        resultsDiv.innerHTML += `
+          <div class="verse">
             <strong>Sourate ${surah}, Verset ${ayah}</strong>
-            <div class="ar">${arabic}</div>
-            <p>${french}</p>
-            <audio controls src="${audioUrl}"></audio>
-          `;
-          resultsDiv.appendChild(verseDiv);
-        });
-      } catch (error) {
-        console.error(error);
-        resultsDiv.innerHTML = '<p>❌ Erreur lors de la recherche. Réessaie plus tard.</p>';
-      }
-    }
-  </script>
-
-  <p class="small">© 2025 – Projet La Caverne | API : Al-Quran Open Source</p>
-
-</body>
-</html>
