@@ -1,46 +1,72 @@
-<script>
-async function searchQuran() {
-  const q = document.getElementById('query').value.trim();
-  const resultsDiv = document.getElementById('results');
-  resultsDiv.innerHTML = '<p>⏳ Recherche en cours...</p>';
-
-  if (!q) {
-    resultsDiv.innerHTML = '<p>❗️Entre un mot ou une référence (ex: 12:20)</p>';
-    return;
-  }
-
-  try {
-    // Si l'utilisateur entre une référence (ex: 2:255)
-    if (q.includes(':')) {
-      const [surah, ayah] = q.split(':');
-      const response = await fetch(`https://api.alquran.cloud/v1/ayah/${surah}:${ayah}/editions/quran-simple,fr.hamidullah,ar.alafasy`);
-      const data = await response.json();
-      if (data.code !== 200) throw new Error('Aucun résultat');
-
-      const [arabic, french, audio] = data.data;
-      resultsDiv.innerHTML = `
-        <div class="verse">
-          <strong>Sourate ${surah}, Verset ${ayah}</strong>
-          <div class="ar">${arabic.text}</div>
-          <p>${french.text}</p>
-          <audio controls src="${audio.audio}"></audio>
-        </div>
-      `;
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CAVERNA – Recherche Coran</title>
+  <style>
+    body {
+      background: #0b0b0e;
+      color: #f1f1f1;
+      font-family: system-ui, sans-serif;
+      text-align: center;
+      padding: 20px;
     }
+    input {
+      width: 80%;
+      max-width: 400px;
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      margin-bottom: 10px;
+      font-size: 16px;
+    }
+    button {
+      background: #fbc576;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      color: #1b1204;
+    }
+    .verse {
+      background: #14141a;
+      border-radius: 10px;
+      margin: 20px auto;
+      padding: 15px;
+      max-width: 700px;
+      text-align: left;
+    }
+    .ar {
+      direction: rtl;
+      font-size: 24px;
+      margin-top: 10px;
+      background: #101014;
+      padding: 10px;
+      border-radius: 8px;
+    }
+    audio {
+      width: 100%;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
 
-    // Sinon, si l'utilisateur tape un mot-clé (ex: sabr)
-    else {
-      const response = await fetch(`https://api.alquran.cloud/v1/search/${encodeURIComponent(q)}/all/fr.hamidullah`);
-      const data = await response.json();
-      if (data.code !== 200 || !data.data.matches.length) {
-        resultsDiv.innerHTML = '<p>⚠️ Aucun verset trouvé pour ce mot-clé.</p>';
-        return;
-      }
+  <h1>🕋 CAVERNA – Moteur du Coran</h1>
+  <p>Entre une référence (ex: 12:20) ou un mot anglais (ex: mercy, patience)</p>
 
-      resultsDiv.innerHTML = '';
-      data.data.matches.slice(0, 10).forEach(item => {
-        const surah = item.surah.number;
-        const ayah = item.numberInSurah;
-        resultsDiv.innerHTML += `
-          <div class="verse">
-            <strong>Sourate ${surah}, Verset ${ayah}</strong>
+  <input id="query" placeholder="Ex: 2:255 ou mercy" />
+  <button onclick="searchQuran()">Rechercher</button>
+
+  <div id="results"></div>
+
+  <script>
+  async function searchQuran() {
+    const q = document.getElementById("query").value.trim();
+    const container = document.getElementById("results");
+    container.innerHTML = "⏳ Recherche en cours...";
+    if (!q) return container.innerHTML = "❗️ Entre une référence ou un mot-clé";
+
+    try
